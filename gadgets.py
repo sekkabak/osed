@@ -4,6 +4,9 @@ import sys
 import os.path
 import argparse
 
+# #todo make a filter for xchg
+# #todo look at https://github.com/0xbad53c/osed-tools/blob/main/filter-ropfile.py
+
 def clean_gadgets(lines):
     header_end = next((i for i, line in enumerate(lines) if "gadgets found." in line), -1)
     if header_end != -1:
