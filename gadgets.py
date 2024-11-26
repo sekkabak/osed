@@ -22,6 +22,16 @@ def clean_gadgets(lines):
     lines = [line.strip().replace('  ', ' ').replace('dword ', '').replace('ptr ', '').replace(' ;', ';') for line in lines if line]
     return sorted(set(lines), key=len)
 
+def fix_address_with_trailing_zeros(lines):
+    clean_lines = []
+    for line in lines:
+        address_part = line.split(":", 1)[0].lower().replace('0x', '')
+        gadget = line.split(":", 1)[1]
+        if len(address_part) != 8:
+            zeros = "0"*(8-len(address_part))
+            line = "0x" + zeros + address_part + ":" + gadget
+        clean_lines.append(lines)
+
 def get_gadgets(file_path):
     if "linux" in platform:
         cmd = f'./rp-lin -r 6 -f {file_path}'
@@ -34,6 +44,7 @@ def get_gadgets(file_path):
     output = subprocess.run(cmd, shell=True, capture_output=True)
     output_lines = output.stdout.decode().split('\n')
     clean_gadgets_list = clean_gadgets(output_lines)
+    clean_gadgets_list = fix_address_with_trailing_zeros(clean_gadgets_list)
     return clean_gadgets_list
 
 def remove_gadgets_with_bad_bytes(gadgets, bad_bytes):
