@@ -31,6 +31,7 @@ def fix_address_with_trailing_zeros(lines):
             zeros = "0"*(8-len(address_part))
             line = "0x" + zeros + address_part + ":" + gadget
         clean_lines.append(lines)
+    return clean_lines
 
 def get_gadgets(file_path):
     if "linux" in platform:
