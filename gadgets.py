@@ -30,7 +30,7 @@ def fix_address_with_trailing_zeros(lines):
         if len(address_part) != 8:
             zeros = "0"*(8-len(address_part))
             line = "0x" + zeros + address_part + ":" + gadget
-        clean_lines.append(lines)
+        clean_lines.append(line)
     return clean_lines
 
 def get_gadgets(file_path):
