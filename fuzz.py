@@ -16,6 +16,6 @@ while len(buffer) < 10000:
     connect = s.connect((ip, port))
     print(s.recv(1024))
     print(f"Count: {counter}")
-    s.send(b"OVERFLOW10 " + len(buffer))
+    s.send(buffer)
     print(s.recv(1024))
     s.close()

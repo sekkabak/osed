@@ -3,9 +3,16 @@ import re
 import sys
 import os.path
 import argparse
+from sys import platform
 
-# #todo make a filter for xchg
-# #todo look at https://github.com/0xbad53c/osed-tools/blob/main/filter-ropfile.py
+"""
+#todo make a filter for xchg
+#todo look at https://github.com/0xbad53c/osed-tools/blob/main/filter-ropfile.py
+#todo make an option for addresses to be relative with dll_base (add a new param for each lib that you grab gadgets from)
+#todo make an option for changeing a maximum length of an gadget, fetched via rp++.exe
+#todo integrate gadget finding with capstone engine
+#todo enable ALL gadgets, not only ret;
+"""
 
 def clean_gadgets(lines):
     header_end = next((i for i, line in enumerate(lines) if "gadgets found." in line), -1)
@@ -16,7 +23,14 @@ def clean_gadgets(lines):
     return sorted(set(lines), key=len)
 
 def get_gadgets(file_path):
-    cmd = f'C:\\osed\\rp++.exe -r 6 -f {file_path}'
+    if "linux" in platform:
+        cmd = f'./rp-lin -r 6 -f {file_path}'
+        print(cmd)
+    elif "win32" in platform:
+        cmd = f'./rp++.exe -r 6 -f {file_path}'
+    else:
+        print("Sorry, bad system.")
+        exit(1)
     output = subprocess.run(cmd, shell=True, capture_output=True)
     output_lines = output.stdout.decode().split('\n')
     clean_gadgets_list = clean_gadgets(output_lines)
@@ -83,10 +97,12 @@ def write_gadgets_to_file(args):
         gadgets = get_gadgets(file_path)
         bad_bytes_list = args.bad_chars
         gadgets = remove_gadgets_with_bad_bytes(gadgets, bad_bytes_list)
-        gadgets = remove_non_ret_lines(gadgets)
+        if not args.all:
+            gadgets = remove_non_ret_lines(gadgets)
         all_gadgets += gadgets
         
     all_gadgets = remove_duplicates_after_colon(all_gadgets)  
+    print(f"Gadgets found: {len(all_gadgets)}")
     with open(args.output, "w") as file:
         for gadget in all_gadgets:
             file.write(f"{gadget}\n")
@@ -160,7 +176,7 @@ def main(args):
     elif args.search == "all":
         find_cool_gadgets(args)
     elif args.files is None and args.search is None:
-        print("Please provide valid args")
+        print("Use -h to print help")
     elif args.search is not None:
          for result in find_gadget_with_regex(args.output, args.search, max_results=args.count, to_python=(not args.no_python)):
             print(result)
@@ -195,7 +211,7 @@ def cmdline_args():
     )
     parser.add_argument(
         "--no_python",
-        help="Turn offs python sentax for grep",
+        help="Turn offs python syntax for grep result",
         default=False,
         action=argparse.BooleanOptionalAction
     )
@@ -211,6 +227,13 @@ def cmdline_args():
         "--output",
         help="name of output file where all (uncategorized) gadgets are written (default: gadgets.txt)",
         default="gadgets.txt",
+    )
+    parser.add_argument(
+        "-a",
+        "--all",
+        help="get all gadgets. This includes: (ret+0x19; call esp+123) ... etc",
+        default=False,
+        action=argparse.BooleanOptionalAction
     )
     return(parser.parse_args())
 
