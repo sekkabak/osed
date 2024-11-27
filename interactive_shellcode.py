@@ -1,4 +1,5 @@
 from keystone import *
+import readline
 
 def make_asm():
     ks = Ks(KS_ARCH_X86, KS_MODE_32)

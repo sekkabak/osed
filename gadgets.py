@@ -141,39 +141,39 @@ def find_gadget_with_regex(file, regex, max_results=1, filter=[], to_python=True
 def find_cool_gadgets(args):
     print("Finding cool gadgets")
 
-    print("Load from memory to register: mov e.., \\[e..\\];")
+    print("\nLoad from memory to register: mov e.., \\[e..\\];")
     for result in find_gadget_with_regex(args.output, r"mov e.., (dword\s+)?\[e..\];", max_results=5, filter=['eax, [eax]', 'ebx, [ebx]', 'ecx, [ecx]', 'esp, [esp]', 'esi, [esi]']):
         print(result)
 
-    print("Load from memory to register: lea e.., \\[e..\\];")
+    print("\nLoad from memory to register: lea e.., \\[e..\\];")
     for result in find_gadget_with_regex(args.output, r"mov e.., (dword\s+)?\[e..\];", max_results=5, filter=['eax, [eax]', 'ebx, [ebx]', 'ecx, [ecx]', 'esp, [esp]', 'esi, [esi]']):
         print(result)
 
-    print("Save register to memory: mov \\[e..\\], e..;")
+    print("\nSave register to memory: mov \\[e..\\], e..;")
     for result in find_gadget_with_regex(args.output, r"mov \[e..\], e..;", max_results=args.count, filter=['[eax], eax', '[ebx], ebx', '[ecx], ecx', '[esp], esp', '[esi], esi']):
         print(result)
 
-    print("Save ESP: mov e.., esp;")
+    print("\nSave ESP: mov e.., esp;")
     for result in find_gadget_with_regex(args.output, r"mov e.., esp;", max_results=args.count):
         print(result)
 
-    print("Push ESP, then pop: push esp; pop e..;")
+    print("\nPush ESP, then pop: push esp; pop e..;")
     for result in find_gadget_with_regex(args.output, r"push esp;.* pop e..;", max_results=args.count):
         print(result)
 
-    print("sub e.., e..;")
+    print("\nsub e.., e..;")
     for result in find_gadget_with_regex(args.output, r"sub e.., e..;", max_results=args.count):
         print(result)
 
-    print("add e.., e..;")
+    print("\nadd e.., e..;")
     for result in find_gadget_with_regex(args.output, r"add e.., e..;", max_results=args.count):
         print(result)
 
-    print("dec e.., e..;")
+    print("\ndec e.., e..;")
     for result in find_gadget_with_regex(args.output, r"dec e..;", max_results=args.count):
         print(result)
     
-    print("inc e.., e..;")
+    print("\ninc e.., e..;")
     for result in find_gadget_with_regex(args.output, r"inc e..;", max_results=args.count):
         print(result)
 
@@ -185,7 +185,7 @@ def main(args):
 
     if args.search is not None and not os.path.isfile(args.output):
         print("Please provide files to create file")
-    elif args.search == "all":
+    elif args.all:
         find_cool_gadgets(args)
     elif args.files is None and args.search is None:
         print("Use -h to print help")
