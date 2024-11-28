@@ -19,7 +19,7 @@ def clean_gadgets(lines):
     if header_end != -1:
         lines = lines[header_end + 1:]
     lines = [re.sub(r"\(\d+ found\)", "", line).strip() for line in lines]
-    lines = [line.strip().replace('  ', ' ').replace('dword ', '').replace('ptr ', '').replace(' ;', ';') for line in lines if line]
+    lines = [line.strip().replace('  ', ' ').replace('dword ', '').replace('ptr ', '').replace('byte ', '').replace(' ;', ';') for line in lines if line]
     return sorted(set(lines), key=len)
 
 def fix_address_with_trailing_zeros(lines):
