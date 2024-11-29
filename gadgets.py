@@ -5,6 +5,14 @@ import os.path
 import argparse
 from sys import platform
 
+RED, GREEN, BLUE, MAGENTA, RESET = "\033[31m", "\033[32m", "\033[34m", "\033[35m", "\033[0m"
+
+# Example usage
+print(f"{RED}This text is red!{RESET}")
+print(f"{GREEN}This text is green!{RESET}")
+print(f"{BLUE}This text is blue!{RESET}")
+print(f"{MAGENTA}This text is magenta!{RESET}")
+
 """
 #todo make a filter for xchg
 #todo look at https://github.com/0xbad53c/osed-tools/blob/main/filter-ropfile.py
