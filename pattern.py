@@ -1,6 +1,11 @@
 import sys
 import struct
 
+"""
+Reimplementaion of msf-pattern_create and msf-pattern_offset in pure python
+Credits: https://github.com/ickerwx/pattern
+"""
+
 def print_help():
     print('Usage: %s (create | offset) <value> <buflen>' % sys.argv[0])
 

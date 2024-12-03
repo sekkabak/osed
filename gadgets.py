@@ -5,17 +5,19 @@ import os.path
 import argparse
 from sys import platform
 
+# Coloring
 RED, GREEN, BLUE, MAGENTA, RESET = "\033[31m", "\033[32m", "\033[34m", "\033[35m", "\033[0m"
-
-# Example usage
-print(f"{RED}This text is red!{RESET}")
-print(f"{GREEN}This text is green!{RESET}")
-print(f"{BLUE}This text is blue!{RESET}")
-print(f"{MAGENTA}This text is magenta!{RESET}")
+ERR, GOOD = f"{RED}[!]{RESET}", f"{GREEN}[+]{RESET}"
 
 """
+# file with cool gadgets
+# gadgets for decoder
+# find pushad; ret !!!
+# push with more pops
+# remove "push sth; ret;"
 #todo make a filter for xchg
 #todo look at https://github.com/0xbad53c/osed-tools/blob/main/filter-ropfile.py
+# https://github.com/epi052/osed-scripts/blob/main/find-gadgets.py
 #todo make an option for addresses to be relative with dll_base (add a new param for each lib that you grab gadgets from)
 #todo make an option for changeing a maximum length of an gadget, fetched via rp++.exe
 #todo integrate gadget finding with capstone engine
@@ -30,20 +32,29 @@ def clean_gadgets(lines):
     lines = [line.strip().replace('  ', ' ').replace('dword ', '').replace('ptr ', '').replace('byte ', '').replace(' ;', ';') for line in lines if line]
     return sorted(set(lines), key=len)
 
-def fix_address_with_trailing_zeros(lines):
+def fix_address_with_trailing_zeros(lines, args):
     clean_lines = []
     for line in lines:
-        address_part = line.split(":", 1)[0].lower().replace('0x', '')
+        if args.base:
+            base = line.split("+", 1)[0]
+        address_part = line.split(":", 1)[0].lower().split('0x', 1)[1]
         gadget = line.split(":", 1)[1]
+        
         if len(address_part) != 8:
             zeros = "0"*(8-len(address_part))
-            line = "0x" + zeros + address_part + ":" + gadget
+            if not args.base:
+                line = "0x" + zeros + address_part + ":" + gadget
+            else:
+                line = base+ "+" +"0x" + zeros + address_part + ":" + gadget
         clean_lines.append(line)
     return clean_lines
 
-def get_gadgets(file_path):
+def get_gadgets(file_path, args):
     if "linux" in platform:
-        cmd = f'./rp-lin -r 6 -f {file_path}'
+        if not args.base:
+            cmd = f'./rp-lin -r 6 -f {file_path}'
+        else:
+            cmd = f'./rp-lin --va 0x0 -r 6 -f {file_path}'
         print(cmd)
     elif "win32" in platform:
         cmd = f'./rp++.exe -r 6 -f {file_path}'
@@ -52,8 +63,16 @@ def get_gadgets(file_path):
         exit(1)
     output = subprocess.run(cmd, shell=True, capture_output=True)
     output_lines = output.stdout.decode().split('\n')
+    
     clean_gadgets_list = clean_gadgets(output_lines)
-    clean_gadgets_list = fix_address_with_trailing_zeros(clean_gadgets_list)
+    
+    if args.base:
+        basename = 'base_'+os.path.basename(file_path).split('.',1)[0]
+        modified_array = [basename + '+' + item for item in clean_gadgets_list]
+        clean_gadgets_list = modified_array
+    
+    clean_gadgets_list = fix_address_with_trailing_zeros(clean_gadgets_list, args)
+    
     return clean_gadgets_list
 
 def remove_gadgets_with_bad_bytes(gadgets, bad_bytes):
@@ -81,40 +100,11 @@ def remove_duplicates_after_colon(gadgets):
             filtered_gadgets.append(gadget)
     return filtered_gadgets
 
-def print_useful_regex(output):
-    reg_prefix = "e"
-    len_sort = "| awk '{ print length, $0 }' | sort -n -s -r | cut -d' ' -f2- | tail"
-    any_reg = f'{reg_prefix}..'
-
-    search_terms = list()
-    search_terms.append(f'(jmp|call) {reg_prefix}sp;')
-    search_terms.append(fr'mov {any_reg}, \[{any_reg}\];')
-    search_terms.append(fr'mov \[{any_reg}\], {any_reg};')
-    search_terms.append(fr'mov {any_reg}, {any_reg};')
-    search_terms.append(fr'xchg {any_reg}, {any_reg};')
-    search_terms.append(fr'push {any_reg};.*pop {any_reg};')
-    search_terms.append(fr'inc {any_reg};')
-    search_terms.append(fr'dec {any_reg};')
-    search_terms.append(fr'neg {any_reg};')
-    search_terms.append(fr'push {any_reg};')
-    search_terms.append(fr'pop {any_reg};')
-    search_terms.append('pushad;')
-    search_terms.append(fr'and {any_reg}, ({any_reg}|0x.+?);')
-    search_terms.append(fr'xor {any_reg}, ({any_reg}|0x.+?);')
-    search_terms.append(fr'add {any_reg}, ({any_reg}|0x.+?);')
-    search_terms.append(fr'sub {any_reg}, ({any_reg}|0x.+?);')
-    search_terms.append(fr'(lea|mov|and) \[?{any_reg}\]?, 0;')
-
-    print(f"[+] helpful regex for searching within {output}\n")
-
-    for term in search_terms:
-        print(f"egrep '{term}' {output} {len_sort}")
-
 def write_gadgets_to_file(args):
     all_gadgets = []
     for file in args.files:
         file_path = file
-        gadgets = get_gadgets(file_path)
+        gadgets = get_gadgets(file_path, args)
         bad_bytes_list = args.bad_chars
         gadgets = remove_gadgets_with_bad_bytes(gadgets, bad_bytes_list)
         if not args.all:
@@ -122,12 +112,12 @@ def write_gadgets_to_file(args):
         all_gadgets += gadgets
         
     all_gadgets = remove_duplicates_after_colon(all_gadgets)  
-    print(f"Gadgets found: {len(all_gadgets)}")
+    print(f"{GOOD} Gadgets found: {len(all_gadgets)}")
     with open(args.output, "w") as file:
         for gadget in all_gadgets:
             file.write(f"{gadget}\n")
 
-def find_gadget_with_regex(file, regex, max_results=1, filter=[], to_python=True):
+def find_gadget_with_regex(file, regex, max_results=1, filter=[], syntax=0):
     regex = re.compile(regex)
     matching_lines = []
 
@@ -139,17 +129,57 @@ def find_gadget_with_regex(file, regex, max_results=1, filter=[], to_python=True
                 matching_lines.append(gadget)
                 if len(matching_lines) >= max_results:
                     break
-    if to_python:
-        output = []
-        for m in matching_lines:
-            output.append('rop += pack("<L", ' + m.replace(":", ")\t#"))
-        matching_lines = output
+    
+    # #todo implement various libraries bases
+    res = []
+    for m in matching_lines:
+        if syntax == 0:
+            res.append(m)
+        elif syntax == 1:
+            res.append('rop += pack("<L", ' + m.replace(":", ")\t#"))
+        elif syntax == 2:
+            res.append('rop += ' + m.replace(":", "\t#"))
+    matching_lines = res
+    
     return matching_lines
 
 def find_cool_gadgets(args):
-    print("Finding cool gadgets")
+    print(f"{GOOD} Finding cool gadgets")
 
-    print("\nLoad from memory to register: mov e.., \\[e..\\];")
+    registers = ['eax','ebx','ecx','edx','edi','esp','esi','ebp']
+    print(f"{GOOD} pushad:")
+    print(find_gadget_with_regex(args.output, r"pushad;", max_results=1, syntax=args.syntax)[0])
+    print(f"{GOOD} POP:")
+    for r in registers:
+        for result in find_gadget_with_regex(args.output, fr"pop {r};", max_results=1, syntax=args.syntax):
+            print(result)
+    print(f"{GOOD} MOV:")
+    for r in registers:
+        # remove duplicates
+        for result in list(set(find_gadget_with_regex(args.output, fr"mov {r}, ...;", max_results=len(registers)*2, syntax=args.syntax))):
+            print(result)
+
+    return
+    
+    #     search_terms.append(f'(jmp|call) {reg_prefix}sp;')
+    # search_terms.append(fr'mov {any_reg}, \[{any_reg}\];')
+    # search_terms.append(fr'mov \[{any_reg}\], {any_reg};')
+    # search_terms.append(fr'mov {any_reg}, {any_reg};')
+    # search_terms.append(fr'xchg {any_reg}, {any_reg};')
+    # search_terms.append(fr'push {any_reg};.*pop {any_reg};')
+    # search_terms.append(fr'inc {any_reg};')
+    # search_terms.append(fr'dec {any_reg};')
+    # search_terms.append(fr'neg {any_reg};')
+    # search_terms.append(fr'push {any_reg};')
+    # search_terms.append(fr'pop {any_reg};')
+    # search_terms.append('pushad;')
+    # search_terms.append(fr'and {any_reg}, ({any_reg}|0x.+?);')
+    # search_terms.append(fr'xor {any_reg}, ({any_reg}|0x.+?);')
+    # search_terms.append(fr'add {any_reg}, ({any_reg}|0x.+?);')
+    # search_terms.append(fr'sub {any_reg}, ({any_reg}|0x.+?);')
+    # search_terms.append(fr'(lea|mov|and) \[?{any_reg}\]?, 0;')
+
+    # print("\nLoad from memory to register: mov e.., \\[e..\\];")
     for result in find_gadget_with_regex(args.output, r"mov e.., (dword\s+)?\[e..\];", max_results=5, filter=['eax, [eax]', 'ebx, [ebx]', 'ecx, [ecx]', 'esp, [esp]', 'esi, [esi]']):
         print(result)
 
@@ -168,6 +198,8 @@ def find_cool_gadgets(args):
     print("\nPush ESP, then pop: push esp; pop e..;")
     for result in find_gadget_with_regex(args.output, r"push esp;.* pop e..;", max_results=args.count):
         print(result)
+        
+        
 
     print("\nsub e.., e..;")
     for result in find_gadget_with_regex(args.output, r"sub e.., e..;", max_results=args.count):
@@ -177,28 +209,31 @@ def find_cool_gadgets(args):
     for result in find_gadget_with_regex(args.output, r"add e.., e..;", max_results=args.count):
         print(result)
 
-    print("\ndec e.., e..;")
+    print("\ndec e..;")
     for result in find_gadget_with_regex(args.output, r"dec e..;", max_results=args.count):
         print(result)
     
-    print("\ninc e.., e..;")
+    print("\ninc e..;")
     for result in find_gadget_with_regex(args.output, r"inc e..;", max_results=args.count):
         print(result)
 
 
 def main(args):
-    if args.files is not None:
+    if args.files is not None and os.path.isfile(args.output) and not args.recreate:
+        print(f"\n{GOOD} Using existing file: {args.output}\n")
+    elif args.files is not None:
+        print(f"{GOOD} Creating new gadgets file: {args.output}")
         write_gadgets_to_file(args)
-        print(f"Gadgets saved to: {args.output}")
+        print(f"{GOOD} Gadgets saved to: {args.output}")
 
     if args.search is not None and not os.path.isfile(args.output):
         print("Please provide files to create file")
-    elif args.all:
+    elif args.cool:
         find_cool_gadgets(args)
     elif args.files is None and args.search is None:
         print("Use -h to print help")
     elif args.search is not None:
-         for result in find_gadget_with_regex(args.output, args.search, max_results=args.count, to_python=(not args.no_python)):
+         for result in find_gadget_with_regex(args.output, args.search, max_results=args.count, syntax=args.syntax):
             print(result)
     
 def cmdline_args():
@@ -206,6 +241,9 @@ def cmdline_args():
         description="""Searches for clean, categorized gadgets from a given list of files\n
         python3 gadgets.py -b 00 0a -f 'C:\\osed\\learning\\FastBackServer\\CSFTPAV6.DLL' -s all
         python3 gadgets.py -b 00 0a -s 'push eax; .* pop ebx'
+        
+        sudo python3 gadgets.py -f /home/kali/Desktop/Reverse/libspp.dll -b 00 0a 0d 25 26 2b 3d
+
         """
     )
     parser.add_argument(
@@ -225,15 +263,15 @@ def cmdline_args():
     parser.add_argument(
         "-f",
         "--files",
-        help="space separated list of files from which to pull gadgets",
-        required=False,
+        help="space separated list of files from which to pull gadgets. EVEN IF file is create this argument is used to specify bases",
+        required=True,
         nargs="+",
     )
     parser.add_argument(
-        "--no_python",
-        help="Turn offs python syntax for grep result",
-        default=False,
-        action=argparse.BooleanOptionalAction
+        "--syntax",
+        help="0 - Raw, 1 - struct.pack, 2 - framework",
+        default=0,
+        type=int
     )
     parser.add_argument(
         "-b",
@@ -255,10 +293,26 @@ def cmdline_args():
         default=False,
         action=argparse.BooleanOptionalAction
     )
+    parser.add_argument(
+        "--cool",
+        help="Get auto filtered cool gadgets",
+        default=False,
+        action=argparse.BooleanOptionalAction
+    )
+    parser.add_argument(
+        "--base",
+        help="Uses default image offset",
+        default=False,
+        action=argparse.BooleanOptionalAction
+    )
+    parser.add_argument(
+        "-r",
+        "--recreate",
+        help="Forces new output file creation",
+        default=False,
+        action=argparse.BooleanOptionalAction
+    )
     return(parser.parse_args())
 
 if __name__ == '__main__':
-    if sys.version_info<(3,5,0):
-        sys.stderr.write("You need python 3.5 or later to run this script\n")
-        sys.exit(1)
     main(cmdline_args())

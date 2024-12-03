@@ -1,7 +1,11 @@
 # todo
+memory_start = ""
+memory_end = ""
+codes_with_spaces = ""
+f"s -b {memory_start} {memory_end} {codes_with_spaces}"
 
-"FFD{0-7}" # call
-"FFE{0-7}" # jmp
+# "FFD{0-7}" # call
+# "FFE{0-7}" # jmp
 # FFD4    call esp
 # FFD0    call eax
 # FFD3    call ebx

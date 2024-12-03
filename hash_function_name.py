@@ -1,11 +1,16 @@
 import sys
 
+"""
+Creates hash from function name to compare it later via assembly
+"""
+
 def ror_str(byte, count):
     binb = bin(byte)[2:].zfill(32)
     while count > 0:
         binb = binb[-1] + binb[0:-1]
         count -= 1
     return (int(binb, 2))
+
 if __name__ == '__main__':
     try:
         esi = sys.argv[1]   

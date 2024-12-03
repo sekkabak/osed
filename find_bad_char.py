@@ -1,10 +1,14 @@
-#!/usr/bin/python
+#!/bin/python
 import sys
 
+# Coloring
+RED, GREEN, BLUE, MAGENTA, RESET = "\033[31m", "\033[32m", "\033[34m", "\033[35m", "\033[0m"
+ERR, GOOD = f"{RED}[!]{RESET}", f"{GREEN}[+]{RESET}"
+
 print("Put a CCCCCC on start of the buffer")
-print("Search for it in the memory with: s -a 0 L?80000000 \"CCCCCC\"")
+print(f"Search for it in the memory with: {MAGENTA}s -a 0 L?80000000 \"CCCCCC\"{RESET}")
 print("Grab the address closest to the ESP or one that suites")
-print("Use tihs address with dd {address} L50")
+print(f"Use this address with {MAGENTA}dd {{address}} L50{RESET}")
 
 print("Paste WHOLE memory dump from WinDBG command (Also with linebreaks):")
 print("To proceed after that paste press CTRL+D or CTRL+C")
@@ -77,9 +81,9 @@ for i in range(len(all_possible_bytes)):
     break_counter+=1
   
   if break_counter>3:
-    print("Too much differences, stopping.")
+    print(f"{ERR} Too much differences, stopping.")
     break
 
   if buff_memory[i-memory_counter].upper() == "FF":
-    print("Finito: ")
+    print(f"\n{GOOD} Finito: ")
 print(bad_chars)
