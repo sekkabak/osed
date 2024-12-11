@@ -7,10 +7,13 @@ def make_asm():
     encoding, count = ks.asm(CODE)
     instructions = ""
     python_hex = ""
+    if encoding is None:
+        return
     for dec in encoding:
         instructions += "{0:02X}".format(int(dec)).rstrip("\n") 
         python_hex += "\\x{0:02X}".format(int(dec)).rstrip("\n") 
-    print('\n'+ python_hex +"    "+instructions + '    ' + CODE +'\n')
+    # print('\n'+ python_hex +"    "+instructions + '    ' + CODE +'\n')
+    print('\nb\"'+ python_hex +"\"    # " + CODE +'\n')
 
 try:
     while True:
