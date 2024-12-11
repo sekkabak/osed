@@ -51,17 +51,20 @@ def fix_address_with_trailing_zeros(lines, args):
 
 def get_gadgets(file_path, args):
     if "linux" in platform:
-        if not args.base:
-            cmd = f'./rp-lin -r 6 -f {file_path}'
-        else:
-            cmd = f'./rp-lin --va 0x0 -r 6 -f {file_path}'
-        print(cmd)
+        executable = './rp-lin'
     elif "win32" in platform:
-        cmd = f'./rp++.exe -r 6 -f {file_path}'
+        executable = 'rp++.exe'
     else:
         print("Sorry, bad system.")
         exit(1)
+    if not args.base:
+        cmd = f'{executable} -r 6 -f {file_path}'
+    else:
+        cmd = f'{executable} --va 0x0 -r 6 -f {file_path}'
     output = subprocess.run(cmd, shell=True, capture_output=True)
+    if output.stderr:
+        print(f"{ERR} stderr on rp++")
+        print(f"{ERR} {output.stderr.decode()}")
     output_lines = output.stdout.decode().split('\n')
     
     clean_gadgets_list = clean_gadgets(output_lines)
@@ -159,65 +162,6 @@ def find_cool_gadgets(args):
         for result in list(set(find_gadget_with_regex(args.output, fr"mov {r}, ...;", max_results=len(registers)*2, syntax=args.syntax))):
             print(result)
 
-    return
-    
-    #     search_terms.append(f'(jmp|call) {reg_prefix}sp;')
-    # search_terms.append(fr'mov {any_reg}, \[{any_reg}\];')
-    # search_terms.append(fr'mov \[{any_reg}\], {any_reg};')
-    # search_terms.append(fr'mov {any_reg}, {any_reg};')
-    # search_terms.append(fr'xchg {any_reg}, {any_reg};')
-    # search_terms.append(fr'push {any_reg};.*pop {any_reg};')
-    # search_terms.append(fr'inc {any_reg};')
-    # search_terms.append(fr'dec {any_reg};')
-    # search_terms.append(fr'neg {any_reg};')
-    # search_terms.append(fr'push {any_reg};')
-    # search_terms.append(fr'pop {any_reg};')
-    # search_terms.append('pushad;')
-    # search_terms.append(fr'and {any_reg}, ({any_reg}|0x.+?);')
-    # search_terms.append(fr'xor {any_reg}, ({any_reg}|0x.+?);')
-    # search_terms.append(fr'add {any_reg}, ({any_reg}|0x.+?);')
-    # search_terms.append(fr'sub {any_reg}, ({any_reg}|0x.+?);')
-    # search_terms.append(fr'(lea|mov|and) \[?{any_reg}\]?, 0;')
-
-    # print("\nLoad from memory to register: mov e.., \\[e..\\];")
-    for result in find_gadget_with_regex(args.output, r"mov e.., (dword\s+)?\[e..\];", max_results=5, filter=['eax, [eax]', 'ebx, [ebx]', 'ecx, [ecx]', 'esp, [esp]', 'esi, [esi]']):
-        print(result)
-
-    print("\nLoad from memory to register: lea e.., \\[e..\\];")
-    for result in find_gadget_with_regex(args.output, r"mov e.., (dword\s+)?\[e..\];", max_results=5, filter=['eax, [eax]', 'ebx, [ebx]', 'ecx, [ecx]', 'esp, [esp]', 'esi, [esi]']):
-        print(result)
-
-    print("\nSave register to memory: mov \\[e..\\], e..;")
-    for result in find_gadget_with_regex(args.output, r"mov \[e..\], e..;", max_results=args.count, filter=['[eax], eax', '[ebx], ebx', '[ecx], ecx', '[esp], esp', '[esi], esi']):
-        print(result)
-
-    print("\nSave ESP: mov e.., esp;")
-    for result in find_gadget_with_regex(args.output, r"mov e.., esp;", max_results=args.count):
-        print(result)
-
-    print("\nPush ESP, then pop: push esp; pop e..;")
-    for result in find_gadget_with_regex(args.output, r"push esp;.* pop e..;", max_results=args.count):
-        print(result)
-        
-        
-
-    print("\nsub e.., e..;")
-    for result in find_gadget_with_regex(args.output, r"sub e.., e..;", max_results=args.count):
-        print(result)
-
-    print("\nadd e.., e..;")
-    for result in find_gadget_with_regex(args.output, r"add e.., e..;", max_results=args.count):
-        print(result)
-
-    print("\ndec e..;")
-    for result in find_gadget_with_regex(args.output, r"dec e..;", max_results=args.count):
-        print(result)
-    
-    print("\ninc e..;")
-    for result in find_gadget_with_regex(args.output, r"inc e..;", max_results=args.count):
-        print(result)
-
-
 def main(args):
     if args.files is not None and os.path.isfile(args.output) and not args.recreate:
         print(f"\n{GOOD} Using existing file: {args.output}\n")
@@ -233,7 +177,7 @@ def main(args):
     elif args.files is None and args.search is None:
         print("Use -h to print help")
     elif args.search is not None:
-         for result in find_gadget_with_regex(args.output, args.search, max_results=args.count, syntax=args.syntax):
+        for result in find_gadget_with_regex(args.output, args.search, max_results=args.count, syntax=args.syntax):
             print(result)
     
 def cmdline_args():
